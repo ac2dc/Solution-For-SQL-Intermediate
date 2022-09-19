@@ -347,16 +347,147 @@ FROM Classes, Outcomes
 WHERE Classes.class = Outcomes.ship
 AND Outcomes.result = 'sunk'
 
+-- 49
+SELECT name as Ship_names
+FROM (SELECT s.name AS name, 
+             c.bore
+      FROM ships s
+      JOIN classes c
+        ON s.class = c.class
+      UNION
+      SELECT o.ship AS name, 
+             c.bore
+      FROM outcomes o
+      JOIN classes c
+        ON c.class = o.ship
+      ) a
+WHERE a.bore = '16';
 
+-- 50
+SELECT battle 
+FROM Outcomes, Ships
+WHERE Outcomes.ship = Ships.name
+AND Ships.class = 'Kongo';
 
+-- 52
+SELECT name 
+FROM Ships, Classes
+WHERE Ships.class = Classes.class 
+AND (country = 'Japan' OR country IS NULL) 
+AND (numGuns >= 9 OR numGuns IS NULL)     
+AND (bore < 19 OR bore IS NULL) 
+AND (displacement <= 65000 OR displacement IS NULL) 
+AND (TYPE = 'bb' OR TYPE IS NULL);
 
+-- 53
 
+WITH avg_guns AS (SELECT name AS ship, 
+                  numGuns
+           FROM classes c
+           JOIN ships s
+            ON s.class = c.class
+           WHERE c.type = 'bb'
+           UNION
+           SELECT ship AS ship, 
+                  numGuns
+           FROM outcomes o
+           JOIN classes c
+           ON o.ship = c.class
+           WHERE c.type = 'bb')
 
+SELECT CAST(AVG(numGuns*1.0) AS NUMERIC(6,2)) AS AVG_GUNS
+FROM avg_guns;
 
+-- 54 
 
+WITH a AS (SELECT name AS ship, 
+                  numGuns
+           FROM classes c
+           JOIN ships s
+            ON s.class = c.class
+           WHERE c.type = 'bb'
+           UNION
+           SELECT ship AS ship, 
+                  numGuns
+           FROM outcomes o
+           JOIN classes c
+           ON o.ship = c.class
+           WHERE c.type = 'bb')
 
+SELECT CAST(AVG(numGuns*1.0) AS NUMERIC(6,2)) as avg_guns_per_battleship
+FROM a;
 
+-- 55
 
+SELECT c.class, 
+CASE when s.launched IS NULL THEN (
+	SELECT MIN(launched) 
+	FROM Ships AS s 
+	WHERE s.class = c.class
+) 
+ELSE s.launched END
+FROM Classes AS c
+LEFT JOIN Ships AS s
+ON c.class = s.name;
+
+-- 56
+SELECT class, sum(sunks) AS sunks 
+FROM (
+	SELECT class, sum(CASE result when 'sunk' THEN 1 ELSE 0 END) AS sunks 
+	FROM Classes c LEFT JOIN Outcomes o 
+	ON c.class = o.ship
+	WHERE class NOT IN (SELECT name FROM Ships) 
+	GROUP BY class
+	UNION ALL
+	SELECT class, sum(CASE result when 'sunk' THEN 1 ELSE 0 END) AS sunks
+	FROM Ships s LEFT JOIN Outcomes o 
+	ON s.name = o.ship
+	GROUP BY class
+) AS cnt
+GROUP BY class;
+
+-- 59 
+
+SELECT ss.point,(COALESCE (ss.inc, 0) - COALESCE (dd.out, 0)) as Cash_balance
+FROM (
+	SELECT point, SUM(inc) inc
+	FROM Income_o
+	GROUP BY point
+) AS ss
+FULL JOIN (
+	SELECT point, SUM(out) out 
+	FROM Outcome_o
+	GROUP BY point
+ ) AS dd
+ ON ss.point = dd.point;
+
+ --60
+ SELECT ss.point,(COALESCE (ss.inc, 0) - COALESCE (dd.out, 0))
+FROM (
+	SELECT point, SUM(inc) inc
+	FROM Income_o
+        WHERE '20010415' > date
+	GROUP BY point
+) AS ss
+FULL JOIN (
+	SELECT point, SUM(out) out 
+	FROM Outcome_o
+        WHERE '20010415' > date
+	GROUP BY point
+ ) AS dd
+ ON ss.point = dd.point;
+
+-- 61
+
+select sum(COALESCE (ss.inc, 0) - COALESCE (dd.out, 0)) as balance
+from (select point , sum(inc) inc from Income_o  group by point  ) ss 
+full join (select point ,sum(out) out from Outcome_o  group by point) dd on ss.point=dd.point;
+
+--62
+
+select sum(COALESCE (ss.inc, 0) - COALESCE (dd.out, 0)) as balance
+from (select point , sum(inc) inc from Income_o WHERE '20010415' > date group by point  ) ss 
+full join (select point ,sum(out) out from Outcome_o WHERE '20010415' > date group by point) dd on ss.point=dd.point;
 
 
 
