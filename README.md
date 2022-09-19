@@ -1,3 +1,3 @@
-# sqlex.ru full soluti
+# sqlex.ru full solutions
 
->> Don't copy paste directly , use your mind.
+>  > Don't copy paste directly , use your mind.
