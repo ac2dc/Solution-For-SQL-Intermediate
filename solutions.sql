@@ -491,3 +491,32 @@ full join (select point ,sum(out) out from Outcome_o WHERE '20010415' > date gro
 
 
 
+-- 63 
+
+select name from passenger
+where id_psg in (
+  select
+    p.id_psg
+    from pass_in_trip p
+    group by p.id_psg, p.place
+    having count(*) > 1
+);
+
+-- 64  
+select
+  coalesce(i.point,o.point) as point
+  ,coalesce(i.date,o.date) as date
+  ,CASE WHEN sum(inc) is not null
+        THEN 'inc' ELSE 'out'
+   END as operation
+  ,CASE WHEN sum(inc) is not null
+        THEN sum(inc)
+        ELSE sum(out)
+    END as money
+  from income i
+  full join outcome o on i.date=o.date and i.point=o.point
+  group by coalesce(i.point,o.point), coalesce(i.date,o.date)
+  having sum(inc) is null OR sum(out) is null
+order by 1,2;
+
+-- checking for git conflict
