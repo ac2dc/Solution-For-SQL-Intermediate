@@ -483,12 +483,11 @@ select sum(COALESCE (ss.inc, 0) - COALESCE (dd.out, 0)) as balance
 from (select point , sum(inc) inc from Income_o  group by point  ) ss 
 full join (select point ,sum(out) out from Outcome_o  group by point) dd on ss.point=dd.point;
 
---62
+-- 62
 
 select sum(COALESCE (ss.inc, 0) - COALESCE (dd.out, 0)) as balance
 from (select point , sum(inc) inc from Income_o WHERE '20010415' > date group by point  ) ss 
 full join (select point ,sum(out) out from Outcome_o WHERE '20010415' > date group by point) dd on ss.point=dd.point;
-
 
 
 
