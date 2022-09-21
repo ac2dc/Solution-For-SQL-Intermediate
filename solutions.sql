@@ -519,3 +519,70 @@ select
   having sum(inc) is null OR sum(out) is null
 order by 1,2;
 
+-- 66
+
+SELECT date, max(c) as total_trip FROM
+(SELECT date,count(*) AS c FROM Trip,
+(SELECT trip_no,date FROM Pass_in_trip WHERE date>='2003-04-01' AND date<='2003-04-07' GROUP BY trip_no, date) AS t1
+WHERE Trip.trip_no=t1.trip_no AND town_from='Rostov'
+GROUP BY date
+UNION ALL
+SELECT '2003-04-01',0
+UNION ALL
+SELECT '2003-04-02',0
+UNION ALL
+SELECT '2003-04-03',0
+UNION ALL
+SELECT '2003-04-04',0
+UNION ALL
+SELECT '2003-04-05',0
+UNION ALL
+SELECT '2003-04-06',0
+UNION ALL
+SELECT '2003-04-07',0) AS t2
+GROUP BY date;
+
+-- 67
+With cte AS
+(
+select town_from, town_to, count(*) as rn  from trip 
+group by town_from, town_to
+)
+select count(rn) as max_num_flight from cte
+where rn = (select max(rn) from cte);
+
+-- 68
+
+WITH trips AS (
+SELECT towns.town_1, towns.town_2, COUNT(*) AS cnt, DENSE_RANK() OVER(ORDER BY COUNT(*) DESC) as dr FROM Trip t1
+	CROSS APPLY (VALUES(CASE WHEN town_from < town_to THEN town_from ELSE town_to END,CASE WHEN town_from < town_to THEN town_to ELSE town_from END)) AS towns(town_1, town_2)
+	GROUP BY towns.town_1, towns.town_2
+)
+SELECT COUNT(*)  as tot FROM trips
+WHERE dr = 1;
+
+-- 69 
+
+-- 70
+
+WITH ships_battles AS
+(
+SELECT class, country, battle FROM Classes c JOIN Outcomes o ON c.class = o.ship
+UNION
+SELECT name, country, battle FROM Outcomes o JOIN Ships s on o.ship = s.name 
+JOIN Classes c ON s.class = c.class
+), battles AS (
+SELECT  battle FROM ships_battles s
+GROUP BY country, battle
+HAVING COUNT(*) >= 3
+)
+SELECT DISTINCT battle FROM battles ;
+
+-- 71
+select p.maker from product p where p.type = 'PC'
+except
+select p.maker from product p where p.type = 'PC'
+and not exists
+(
+   select null from pc pc where pc.model = p.model
+);
