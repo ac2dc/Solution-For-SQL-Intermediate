@@ -561,7 +561,7 @@ SELECT towns.town_1, towns.town_2, COUNT(*) AS cnt, DENSE_RANK() OVER(ORDER BY C
 SELECT COUNT(*)  as tot FROM trips
 WHERE dr = 1;
 
--- 69 
+-- 69   
 
 -- 70
 
@@ -586,3 +586,121 @@ and not exists
 (
    select null from pc pc where pc.model = p.model
 );
+
+-- 72
+WITH table1 AS(SELECT pA.ID_psg, COUNT(pA.ID_psg) as trip_Qty,  max(count(1)) over() as max 
+FROM Pass_in_trip pa JOIN Trip t ON t.trip_no = pa.trip_no 
+GROUP by pa.ID_psg
+HAVING count(DISTINCT t.id_comp) = 1)
+
+SELECT name, trip_qty
+FROM table1 t JOIN passenger p
+ON t.id_psg = p.id_psg
+WHERE max = trip_Qty;
+
+-- 73 
+WITH t1 AS (SELECT c.country, o.battle
+FROM classes c, outcomes o
+WHERE c.class = o.ship
+UNION
+SELECT c.country, o.battle
+FROM classes c, ships s, outcomes o
+WHERE c.class = s.class AND s.name = o.ship
+)
+SELECT DISTINCT country, b.name
+FROM classes c, battles b
+WHERE
+(SELECT COUNT(1)
+FROM t1
+WHERE t1.country = c.country
+AND t1.battle = b.name) = 0;
+
+-- 74
+
+
+-- 75
+
+with cte
+as
+(
+select model,price from printer
+union all
+select model,price from pc
+union all
+select model,price from laptop)
+
+select t.* from (
+
+select maker,price,p.type from Product p inner join cte on p.model=cte.model) as t
+pivot (max(price)
+for type in ([Laptop],[PC],[Printer]) )as t
+where coalesce(t.Laptop, t.pc, t.Printer) is not null;
+
+-- 76
+SELECT p.name, SUM(
+	CASE WHEN t.time_out > t.time_in THEN 1440 - DATEDIFF(minute, t.time_in, t.time_out)
+		ELSE DATEDIFF(minute, t.time_out, t.time_in) END
+	) AS minutes 
+FROM Passenger p 
+JOIN Pass_in_trip pit ON p.ID_psg = pit.ID_psg
+JOIN Trip t ON pit.trip_no = t.trip_no
+GROUP BY p.ID_psg, p.name
+HAVING COUNT(DISTINCT pit.place) = COUNT(pit.place);
+
+-- 77
+with rnk as(
+Select count(distinct dt.trip_no) as cnt, dt.date, 
+rank() over(order by count(distinct dt.trip_no) desc) as rn
+from pass_in_trip dt join trip t on dt.trip_no = t.trip_no
+where t.town_from = 'Rostov'
+group by dt.date
+)
+select cnt, date from rnk where rn = 1;
+
+-- 78
+select name, cast(dateadd(month, datediff(month, '19000101', date), '19000101') as date) as firstday,
+cast(dateadd(month, datediff(month, '19000131', date), '19000131') as date) from battles;
+
+-- 79
+
+
+-- 80
+SELECT maker FROM PRODUCT
+EXCEPT
+SELECT  p.maker
+FROM  product p
+LEFT JOIN pc ON pc.model = p.model
+WHERE p.type = 'PC' and pc.model is null;
+
+-- 81
+with summarized_dates as
+(
+Select year(date) yr, month(date) mn, sum(out) as summ, rank() over(order by sum(out) desc) as rn from outcome
+group by year(date), month(date)
+)
+select o.* from outcome o inner join summarized_dates sd
+on sd.yr = YEAR(o.date) and sd.mn = MONTH(o.date) and sd.rn = 1;
+
+-- 82
+with cte as
+(select *, avg(price) over(order by code asc rows between current row and 5 following) as avgprc,
+count(*) over(order by code asc rows between current row and 5 following) as cnt from pc pc1
+)
+select code, avgprc from cte
+where cnt = 6;
+
+-- 84
+WITH criterias AS
+(
+	SELECT s.name,
+	CASE WHEN numGuns = 8 THEN 1 ELSE 0 END AS crit1,
+	CASE WHEN bore = 15 THEN 1 ELSE 0 END AS crit2,
+	CASE WHEN displacement = 32000 THEN 1 ELSE 0 END AS crit3,
+	CASE WHEN type = 'bb' THEN 1 ELSE 0 END AS crit4,
+	CASE WHEN launched = 1915 THEN 1 ELSE 0 END AS crit5,
+	CASE WHEN s.class = 'Kongo' THEN 1 ELSE 0 END AS crit6,
+	CASE WHEN country = 'USA' THEN 1 ELSE 0 END AS crit7
+	FROM Classes c JOIN Ships s ON c.class = s.class
+)
+SELECT name FROM criterias
+WHERE crit1 + crit2 + crit3 + crit4 + crit5 + crit6 + crit7 >= 4;
