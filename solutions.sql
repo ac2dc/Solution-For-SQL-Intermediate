@@ -689,7 +689,7 @@ count(*) over(order by code asc rows between current row and 5 following) as cnt
 select code, avgprc from cte
 where cnt = 6;
 
--- 84
+-- 83
 WITH criterias AS
 (
 	SELECT s.name,
@@ -704,3 +704,109 @@ WITH criterias AS
 )
 SELECT name FROM criterias
 WHERE crit1 + crit2 + crit3 + crit4 + crit5 + crit6 + crit7 >= 4;
+
+-- 84
+WITH timestamps AS 
+(
+Select c.name, 
+CASE WHEN [date] BETWEEN CAST('20030401' as date) AND CAST('20030410' as date) THEN 1 
+WHEN [date] BETWEEN CAST('20030411' as date) AND CAST('20030420' as date) THEN 2
+ELSE 3 END as num FROM
+Trip t inner join Pass_in_trip pit on t.trip_no = pit.trip_no
+INNER JOIN Company c on c.ID_comp = t.ID_comp
+WHERE [date] <= '20030430' AND [date] >= '20030401'
+)
+SELECT * FROM timestamps
+PIVOT (
+count(num) FOR num IN ([1], [2], [3])
+) as pvt;
+
+-- 85
+
+SELECT		maker
+FROM		product
+GROUP BY	maker
+HAVING		sum(CASE WHEN type = 'Printer' THEN 1 END) = count(*)
+		OR (sum(CASE WHEN type = 'PC' THEN 1 END) > = 3
+			AND sum(CASE WHEN type = 'PC' THEN 1 END) = count(*));
+
+-- 87 
+select p.name, sum(case when t.town_to = 'Moscow' then 1 else 0 end ) from passenger p JOIN pass_in_trip pit ON p.id_psg = pit.id_psg JOIN trip t on pit.trip_no = t.trip_no
+
+GROUP BY p.id_psg, p.name	
+having MIN(pit.date + t.time_out) <> MIN(case when t.town_from = 'Moscow' then pit.date + t.time_out else '30000101 00:00:00' end)
+AND sum(case when t.town_to = 'Moscow' then 1 else 0 end) > 1;
+
+-- 88
+
+
+-- 89
+
+with all_cnts AS 
+(
+    select maker, count(*) as cnt, min(count(*)) over() as rn_asc, max(count(*)) over() as rn_desc from product
+    group by maker
+)
+select maker, cnt from all_cnts
+where rn_asc = cnt or rn_desc = cnt;
+
+-- 90
+select * from product
+order by model asc
+offset 3 rows fetch next (select count(*) - 6 from product) rows only;
+
+-- 91
+WITH all_results AS
+(
+	SELECT SUM(1.0 * ISNULL(b.B_VOL, 0.00)) AS sumb, COUNT(DISTINCT q.Q_ID) AS cnt FROM utQ q LEFT JOIN utb b ON q.Q_ID = b.B_Q_ID
+)
+SELECT CAST(sumb/cnt AS decimal(5,2)) FROM all_results ar;
+
+-- 92
+WITH results AS
+(
+	SELECT b.B_Q_ID, SUM(b.B_VOL) OVER(PARTITION BY b.B_Q_ID) AS sum_q, b.B_V_ID, SUM(b.B_VOL) OVER (PARTITION BY b.B_V_ID) AS sum_v FROM utB b
+)
+SELECT q.q_name FROM results r JOIN utQ q ON r.B_Q_ID = q.Q_ID
+GROUP BY r.B_Q_ID, q.Q_NAME
+HAVING MIN(r.sum_q) = 765 AND MIN(r.sum_v) = 255;
+
+-- 93
+Select c.name, sum(x.summ)
+FROM company c INNER JOIN trip t on t.id_comp = c.id_comp
+INNER JOIN (select distinct trip_no, date from pass_in_trip) pit ON t.trip_no = pit.trip_no
+CROSS APPLY (
+   VALUES(
+      CASE WHEN t.time_out < t.time_in THEN DATEDIFF(MINUTE, t.time_out, t.time_in)
+   ELSE 1440 - abs(DATEDIFF(MINUTE, t.time_out, t.time_in))
+   END 
+   )
+) as x(summ)
+group by c.name;
+
+-- 94
+
+
+
+
+-- 100
+
+WITH cte_inc AS
+(
+	SELECT code, point, [date], inc, row_number() OVER(PARTITION BY [date] ORDER BY code) AS rn_ci FROM INCOME
+), cte_out AS
+(
+	SELECT code, point, [date], out, row_number() OVER(PARTITION BY [date] ORDER BY code) AS rn_co FROM OUTCOME
+)
+SELECT ISNULL(ci.date, co.date) AS [date], COALESCE(ci.rn_ci, co.rn_co) ,  ci.point as point_i, ci.inc,   co.point as point_o, co.out
+FROM cte_inc ci FULL OUTER JOIN cte_out co ON ci.[date] = co.[date] AND ci.rn_ci = co.rn_co;
+
+-- 101
+
+-- 125 
+;WITH cte AS ( SELECT p.ID_psg, p.name, place, LEAD(pit.place, 1, '') 
+OVER(PARTITION BY pit.id_psg ORDER BY pit.[date], t.time_out) AS nxt_place 
+FROM Pass_in_trip pit 
+JOIN Trip t ON pit.trip_no = t.trip_no JOIN Passenger p ON p.ID_psg = pit.ID_psg )
+SELECT c.name FROM cte c WHERE c.place = c.nxt_place GROUP BY c.id_psg, c.name;
+
