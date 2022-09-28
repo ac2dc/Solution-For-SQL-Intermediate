@@ -803,6 +803,106 @@ FROM cte_inc ci FULL OUTER JOIN cte_out co ON ci.[date] = co.[date] AND ci.rn_ci
 
 -- 101
 
+
+-- 103
+with cte as
+(
+Select trip_no, row_number() over(order by trip_no asc) as rn_asc, row_number() over(order by trip_no desc) as rn_desc
+from trip),
+mins_n_maxs as
+(
+ select trip_no, row_number() over(order by trip_no asc) as rn from cte where rn_asc <= 3 or rn_desc <=3
+)
+select * from mins_n_maxs
+PIVOT
+(
+ MIN(trip_no) FOR rn IN ([1], [2], [3], [4], [5], [6])
+) as x;
+
+-- 104
+with nums1 as (select 1 as n from (values(1), (1)) as c(n)),
+nums2 as (select 1 as n from nums1 n1 cross join nums1 n2),
+nums3 as (select 1 as n from nums2 n1 cross join nums2 n2),
+rn as (select row_number() over(order by (select null)) as num
+from nums3)
+
+select class, 'bc-'+cast(rn.num as varchar) from classes join rn on numGuns >= rn.num
+where type ='bc';
+
+-- 105
+
+SELECT maker, model,
+ROW_NUMBER() OVER(ORDER BY maker, model) AS [Alice],
+DENSE_RANK() OVER(ORDER BY maker) AS [Betty],
+RANK() OVER(ORDER BY maker) AS [Carol],
+COUNT(*) OVER (ORDER BY maker RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS [Diana]
+FROM Product p1;
+
+-- 106
+
+-- 107
+
+Select c.name, t.trip_no, pit.date from company c inner join trip t on c.id_comp = t.id_comp left join pass_in_trip pit on t.trip_no = pit.trip_no
+where pit.date between '20030401' and '20030430'
+and t.town_from = 'Rostov'
+order by pit.date asc, t.time_out
+offset 4 rows fetch next 1 row only;
+
+
+-- 109
+WITH squares AS (
+SELECT q.Q_NAME, SUM(b.B_VOL) AS all_sum_white, COUNT(CASE WHEN b.B_Q_ID IS NULL THEN 1 END) AS all_black FROM utQ q LEFT JOIN utB b ON q.Q_ID = b.B_Q_ID
+GROUP BY q.Q_ID, q.Q_NAME
+)
+SELECT s.Q_NAME, COUNT(s.all_sum_white) OVER(), SUM(s.all_black) OVER() FROM squares s 
+WHERE s.all_sum_white = 765 OR s.all_sum_white IS NULL;
+
+
+-- 110
+
+select p.name from trip t inner join pass_in_trip pit on pit.trip_no = t.trip_no 
+inner join passenger p on p.id_psg = pit.id_psg where DATEPART(weekday, pit.date) = 7 and CAST(t.time_out as time) > CAST(t.time_in as time)
+group by p.id_psg, p.name;
+
+-- 111
+
+WITH aggregates AS
+(
+	SELECT q.Q_NAME, v.V_COLOR, SUM(b.B_VOL) AS overall FROM utB b JOIN utV v ON b.B_V_ID = v.V_ID JOIN utQ q ON q.Q_ID = b.B_Q_ID
+	GROUP BY q.Q_ID, q.Q_NAME, v.V_COLOR
+)
+SELECT a.Q_NAME, MAX(a.overall) FROM aggregates a
+GROUP BY a.Q_NAME
+HAVING COUNT(*) = 3 AND MIN(a.overall) <> 255 AND MIN(a.overall) = MAX(a.overall);
+
+-- 114
+
+select p.name, tt.dr from (
+	select TOP 1 WITH TIES t.id_psg, max(t.n) as dr FROM
+		(
+		SELECT id_psg, place, COUNT(*) n
+		FROM pass_in_trip
+		GROUP BY id_psg, place
+		) t
+        group by t.id_psg
+        order by max(t.n) desc
+) tt
+inner join passenger p on p.id_psg = tt.id_psg;
+
+
+-- 116
+with distinct_vals as
+(
+select b_datetime from utB group by b_datetime
+)
+,intervals as 
+(
+ select distinct b_datetime, dateadd(second, -row_number() over(order by b_datetime asc), b_datetime) as nxt from distinct_vals 
+)select min(b_datetime), max(b_datetime) from intervals
+group by nxt having count(*) > 1;
+
+-- 
+
 -- 125 
 ;WITH cte AS ( SELECT p.ID_psg, p.name, place, LEAD(pit.place, 1, '') 
 OVER(PARTITION BY pit.id_psg ORDER BY pit.[date], t.time_out) AS nxt_place 
@@ -810,3 +910,67 @@ FROM Pass_in_trip pit
 JOIN Trip t ON pit.trip_no = t.trip_no JOIN Passenger p ON p.ID_psg = pit.ID_psg )
 SELECT c.name FROM cte c WHERE c.place = c.nxt_place GROUP BY c.id_psg, c.name;
 
+-- 129
+
+WITH first_results AS (
+SELECT u.Q_ID id, CASE WHEN LEAD(u.Q_ID, 1) OVER (ORDER BY u.Q_ID ASC) <> u.Q_ID + 1 THEN  LEAD(u.Q_ID, 1) OVER (ORDER BY u.Q_ID ASC) ELSE NULL END AS nxt_num  FROM utQ u
+), resultset AS (
+	SELECT r.id + 1 as prev, r.nxt_num - 1 as nxt from first_results r
+	WHERE r.nxt_num IS NOT NULL
+)
+SELECT MIN(r.prev), MAX(r.nxt) FROM resultset r;
+
+-- 133
+WITH hill AS (
+	SELECT c.ID_comp, (
+		SELECT CAST(''+ c1.ID_comp AS VARCHAR(MAX))
+		FROM Company c1
+		WHERE c1.ID_comp <= c.ID_comp
+		FOR XML PATH('')
+	) AS lower_hill,
+		(
+		SELECT CAST(''+ c1.ID_comp AS VARCHAR(MAX))
+		FROM Company c1
+		WHERE c1.ID_comp <= c.ID_comp
+		ORDER BY c1.ID_comp DESC
+		OFFSET 1 ROWS
+		FOR XML PATH('')
+		)
+	AS upper_hill
+	FROM Company c
+) 
+SELECT ID_comp, CONCAT(lower_hill, upper_hill) FROM hill;
+
+-- 143
+WITH nums AS
+(
+	SELECT 0 AS n
+	UNION ALL
+	SELECT n + 1 AS n FROM nums
+	WHERE n < 6
+)
+SELECT b.name, CAST(b.date AS date), DATEADD(day, -n , EOMONTH(b.date)) FROM Battles b JOIN Nums n
+ON DATEPART(dw, DATEADD(day, -n , EOMONTH(b.date))) = DATEPART(dw, '20210326');
+
+
+-- 147
+
+WITH cnts AS
+(
+	SELECT p.maker, COUNT(*) AS cnt FROM Product p
+	GROUP BY p.maker
+)
+SELECT ROW_NUMBER() OVER( ORDER BY c.cnt DESC, p.maker ASC, p.model ASC ), p.maker, p.model 
+FROM Product p JOIN cnts c ON p.maker = c.maker;
+
+-- 153
+WITH cte AS
+(
+SELECT p.ID_psg, p.name, place,
+	LEAD(pit.place, 1, '') OVER(PARTITION BY pit.id_psg ORDER BY pit.[date], t.time_out) AS nxt_place
+	FROM Pass_in_trip pit JOIN Trip t ON pit.trip_no = t.trip_no
+	JOIN Passenger p ON p.ID_psg = pit.ID_psg
+)
+SELECT c.name FROM cte c
+WHERE c.place = c.nxt_place
+GROUP BY c.id_psg, c.name;
