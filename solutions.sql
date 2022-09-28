@@ -616,7 +616,11 @@ WHERE t1.country = c.country
 AND t1.battle = b.name) = 0;
 
 -- 74
-
+SELECT country, class FROM Classes WHERE country='Russia'
+UNION
+SELECT country, class
+FROM classes
+WHERE 'Russia' NOT IN (SELECT country FROM classes);
 
 -- 75
 
@@ -739,7 +743,22 @@ AND sum(case when t.town_to = 'Moscow' then 1 else 0 end) > 1;
 
 -- 88
 
-
+with psc as (
+  select
+    pit.id_psg
+    , count(pit.trip_no) as trip_count
+    , max(t.id_comp) as id_comp
+  from pass_in_trip pit
+    join trip t on pit.trip_no=t.trip_no
+  group by pit.id_psg
+  having count(distinct t.id_comp) = 1
+)
+select
+  p.name, p1.trip_count, c.name
+from psc p1
+  join company c on p1.id_comp = c.id_comp
+  join passenger p on p1.id_psg = p.id_psg
+where p1.trip_count = (select max(trip_count) from psc);
 -- 89
 
 with all_cnts AS 
@@ -785,10 +804,15 @@ CROSS APPLY (
 group by c.name;
 
 -- 94
-
-
-
-
+SELECT MAX(superden.qty), superden.date 
+  FROM 
+    (SELECT COUNT(den.trip_no) AS qty, den.date 
+       FROM 
+         (SELECT DISTINCT trip_no, date FROM Pass_in_trip) AS den, 
+            Trip WHERE trip.trip_no=den.trip_no AND 
+            trip.town_from='Rostov' 
+       GROUP BY den.date) AS superden 
+    GROUP BY superden.date;
 -- 100
 
 WITH cte_inc AS
@@ -803,6 +827,12 @@ FROM cte_inc ci FULL OUTER JOIN cte_out co ON ci.[date] = co.[date] AND ci.rn_ci
 
 -- 101
 
+WITH grouped AS (
+SELECT code, model, color, type, price, CASE WHEN MAX(CASE WHEN p.color = 'n' THEN p.code END) OVER(ORDER BY p.code) IS NULL THEN 0 ELSE MAX(CASE WHEN p.color = 'n' THEN p.code END) OVER(ORDER BY p.code) END AS grp FROM Printer p
+)
+select code, model, color, type, price, MAX(model) OVER(PARTITION BY G.grp) AS max_model, d.dist_type,
+	AVG(price) OVER(PARTITION BY G.grp) AS avg_price FROM grouped G
+	JOIN ( SELECT g2.grp, COUNT(distinct g2.type) as dist_type FROM grouped g2 GROUP BY g2.grp) AS d ON G.grp = d.grp;
 
 -- 103
 with cte as
@@ -901,7 +931,20 @@ select b_datetime from utB group by b_datetime
 )select min(b_datetime), max(b_datetime) from intervals
 group by nxt having count(*) > 1;
 
--- 
+-- 122
+
+WITH aggregate AS
+(
+SELECT pit.ID_psg, MIN(CONVERT(VARCHAR(8), pit.[date], 112)+CONVERT(VARCHAR(9), t.[time_out], 108)+t.town_from) AS min_town,
+MAX(CONVERT(VARCHAR(10), pit.[date], 112)+CONVERT(VARCHAR(9), t.[time_out], 108)+t.town_to) AS max_town
+FROM Pass_in_trip pit JOIN Trip t ON t.trip_no = pit.trip_no
+GROUP BY pit.ID_psg
+)
+SELECT p.name,X1.val1 FROM aggregate a
+JOIN Passenger p on a.ID_psg = p.ID_psg
+CROSS APPLY (VALUES(SUBSTRING(a.min_town, 17, LEN(a.min_town)))) AS X1(val1)
+CROSS APPLY (VALUES(SUBSTRING(a.max_town, 17, LEN(a.max_town)))) AS X2(val1)
+WHERE X1.val1 <> X2.val1;
 
 -- 125 
 ;WITH cte AS ( SELECT p.ID_psg, p.name, place, LEAD(pit.place, 1, '') 
@@ -919,6 +962,17 @@ SELECT u.Q_ID id, CASE WHEN LEAD(u.Q_ID, 1) OVER (ORDER BY u.Q_ID ASC) <> u.Q_ID
 	WHERE r.nxt_num IS NOT NULL
 )
 SELECT MIN(r.prev), MAX(r.nxt) FROM resultset r;
+
+-- 130
+WITH aggregates AS
+(
+	SELECT q.Q_NAME, v.V_COLOR, SUM(b.B_VOL) AS overall FROM utB b JOIN utV v ON b.B_V_ID = v.V_ID JOIN utQ q ON q.Q_ID = b.B_Q_ID
+	GROUP BY q.Q_ID, q.Q_NAME, v.V_COLOR
+)
+SELECT a.Q_NAME, MAX(a.overall) FROM aggregates a
+GROUP BY a.Q_NAME
+HAVING COUNT(*) = 3 AND MIN(a.overall) <> 255 AND MIN(a.overall) = MAX(a.overall);
+
 
 -- 133
 WITH hill AS (
@@ -974,3 +1028,5 @@ SELECT p.ID_psg, p.name, place,
 SELECT c.name FROM cte c
 WHERE c.place = c.nxt_place
 GROUP BY c.id_psg, c.name;
+
+--

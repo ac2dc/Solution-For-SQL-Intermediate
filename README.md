@@ -1,3 +1,11 @@
-# sqlex.ru full solutions
+# sql ex ru full solutions 
 
->  > Don't copy paste directly , use your mind.
+> Please star the repo , if it helps you anyway possible !
+
+----------------------------------
+
+----------------------
+
+
+<b> Thank You </b>
+
