@@ -861,6 +861,7 @@ where type ='bc';
 
 -- 105
 
+
 SELECT maker, model,
 ROW_NUMBER() OVER(ORDER BY maker, model) AS [Alice],
 DENSE_RANK() OVER(ORDER BY maker) AS [Betty],
