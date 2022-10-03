@@ -39,7 +39,7 @@ select avg(speed) as avg_speed from pc join product p on p.model = pc.model wher
 
 -- 14
 
-select c.class, name, country
+select c.class, [name], country
 from classes c
 join ships s
 on c.class = s.class
@@ -171,6 +171,21 @@ from classes
 where bore >= 16;
 
 -- 32
+
+WITH total
+AS (
+    SELECT country, bore, [name]
+    FROM Classes JOIN Ships
+    ON Classes.class = Ships.class
+    
+    UNION
+    SELECT country, bore, ship
+    FROM Classes JOIN Outcomes
+    ON Classes.class = Outcomes.ship
+)
+SELECT country, cast(round(AVG(power(bore,3)*0.5),2) AS numeric(10,2)) AS weight
+FROM total
+GROUP BY country;
 
 -- 33
 SELECT ship
