@@ -64,7 +64,6 @@ from product p
 join laptop l
   on p.model = l.model
 where speed < ALL (select speed from pc);
-
 -- 18
 
 select maker, price 
@@ -164,6 +163,7 @@ left join Income_o i on ot.point = i.point and ot.date = i.date;
 
 
 -- 30
+
 
 -- 31
 select class, country
@@ -369,6 +369,8 @@ FROM Outcomes, Ships
 WHERE Outcomes.ship = Ships.name
 AND Ships.class = 'Kongo';
 
+-- 51
+
 -- 52
 SELECT name 
 FROM Ships, Classes
@@ -446,6 +448,11 @@ FROM (
 ) AS cnt
 GROUP BY class;
 
+-- 57
+
+-- 58
+
+
 -- 59 
 
 SELECT ss.point,(COALESCE (ss.inc, 0) - COALESCE (dd.out, 0)) as Cash_balance
@@ -489,8 +496,6 @@ select sum(COALESCE (ss.inc, 0) - COALESCE (dd.out, 0)) as balance
 from (select point , sum(inc) inc from Income_o WHERE '20010415' > date group by point  ) ss 
 full join (select point ,sum(out) out from Outcome_o WHERE '20010415' > date group by point) dd on ss.point=dd.point;
 
-
-
 -- 63 
 
 select name from passenger
@@ -518,6 +523,8 @@ select
   group by coalesce(i.point,o.point), coalesce(i.date,o.date)
   having sum(inc) is null OR sum(out) is null
 order by 1,2;
+
+-- 65 
 
 -- 66
 
@@ -577,6 +584,8 @@ GROUP BY country, battle
 HAVING COUNT(*) >= 3
 )
 SELECT DISTINCT battle FROM battles ;
+
+-- 70
 
 -- 71
 select p.maker from product p where p.type = 'PC'
@@ -734,6 +743,9 @@ HAVING		sum(CASE WHEN type = 'Printer' THEN 1 END) = count(*)
 		OR (sum(CASE WHEN type = 'PC' THEN 1 END) > = 3
 			AND sum(CASE WHEN type = 'PC' THEN 1 END) = count(*));
 
+
+-- 86
+
 -- 87 
 select p.name, sum(case when t.town_to = 'Moscow' then 1 else 0 end ) from passenger p JOIN pass_in_trip pit ON p.id_psg = pit.id_psg JOIN trip t on pit.trip_no = t.trip_no
 
@@ -813,6 +825,13 @@ SELECT MAX(superden.qty), superden.date
             trip.town_from='Rostov' 
        GROUP BY den.date) AS superden 
     GROUP BY superden.date;
+
+-- 95
+-- 96
+-- 97
+-- 98
+-- 99
+
 -- 100
 
 WITH cte_inc AS
@@ -833,6 +852,8 @@ SELECT code, model, color, type, price, CASE WHEN MAX(CASE WHEN p.color = 'n' TH
 select code, model, color, type, price, MAX(model) OVER(PARTITION BY G.grp) AS max_model, d.dist_type,
 	AVG(price) OVER(PARTITION BY G.grp) AS avg_price FROM grouped G
 	JOIN ( SELECT g2.grp, COUNT(distinct g2.type) as dist_type FROM grouped g2 GROUP BY g2.grp) AS d ON G.grp = d.grp;
+
+-- 102
 
 -- 103
 with cte as
@@ -861,7 +882,6 @@ where type ='bc';
 
 -- 105
 
-
 SELECT maker, model,
 ROW_NUMBER() OVER(ORDER BY maker, model) AS [Alice],
 DENSE_RANK() OVER(ORDER BY maker) AS [Betty],
@@ -879,6 +899,7 @@ and t.town_from = 'Rostov'
 order by pit.date asc, t.time_out
 offset 4 rows fetch next 1 row only;
 
+-- 108
 
 -- 109
 WITH squares AS (
@@ -947,6 +968,10 @@ CROSS APPLY (VALUES(SUBSTRING(a.min_town, 17, LEN(a.min_town)))) AS X1(val1)
 CROSS APPLY (VALUES(SUBSTRING(a.max_town, 17, LEN(a.max_town)))) AS X2(val1)
 WHERE X1.val1 <> X2.val1;
 
+
+-- 123
+
+-- 124
 -- 125 
 ;WITH cte AS ( SELECT p.ID_psg, p.name, place, LEAD(pit.place, 1, '') 
 OVER(PARTITION BY pit.id_psg ORDER BY pit.[date], t.time_out) AS nxt_place 
@@ -974,7 +999,6 @@ SELECT a.Q_NAME, MAX(a.overall) FROM aggregates a
 GROUP BY a.Q_NAME
 HAVING COUNT(*) = 3 AND MIN(a.overall) <> 255 AND MIN(a.overall) = MAX(a.overall);
 
-
 -- 133
 WITH hill AS (
 	SELECT c.ID_comp, (
@@ -996,6 +1020,15 @@ WITH hill AS (
 ) 
 SELECT ID_comp, CONCAT(lower_hill, upper_hill) FROM hill;
 
+-- 134
+-- 135
+-- 136
+-- 137
+-- 138
+-- 139
+-- 140
+-- 141
+-- 142
 -- 143
 WITH nums AS
 (
@@ -1007,6 +1040,9 @@ WITH nums AS
 SELECT b.name, CAST(b.date AS date), DATEADD(day, -n , EOMONTH(b.date)) FROM Battles b JOIN Nums n
 ON DATEPART(dw, DATEADD(day, -n , EOMONTH(b.date))) = DATEPART(dw, '20210326');
 
+-- 144
+-- 145
+-- 146
 
 -- 147
 
@@ -1018,6 +1054,11 @@ WITH cnts AS
 SELECT ROW_NUMBER() OVER( ORDER BY c.cnt DESC, p.maker ASC, p.model ASC ), p.maker, p.model 
 FROM Product p JOIN cnts c ON p.maker = c.maker;
 
+-- 148
+-- 149
+-- 150
+-- 151
+-- 152
 -- 153
 WITH cte AS
 (
@@ -1029,5 +1070,3 @@ SELECT p.ID_psg, p.name, place,
 SELECT c.name FROM cte c
 WHERE c.place = c.nxt_place
 GROUP BY c.id_psg, c.name;
-
---
