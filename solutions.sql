@@ -163,7 +163,15 @@ left join Income_o i on ot.point = i.point and ot.date = i.date;
 
 
 -- 30
-
+;with cte as(
+select i.point,i.date,null outcome,inc income
+from income i
+union all
+select o.point,o.date,out outcome,null income
+from outcome o)
+select point,date,sum(outcome),sum(income)
+from cte
+group by point,date;
 
 -- 31
 select class, country
@@ -385,6 +393,25 @@ WHERE Outcomes.ship = Ships.name
 AND Ships.class = 'Kongo';
 
 -- 51
+with all_ships(name, displacement, numGuns) as(
+
+select s.name, c.displacement, c.numGuns from classes c join ships s on s.class = c.class
+
+union
+
+select o.ship, c.displacement, c.numGuns from classes c inner join outcomes o on o.ship = c.class
+
+)
+
+, rns as (
+
+select name, displacement, numGuns, dense_rank() over(partition by displacement order by numGuns desc) as dr from all_ships
+
+where numGuns is not null and displacement is not null
+
+)
+
+select name from rns where dr = 1;
 
 -- 52
 SELECT name 
@@ -398,22 +425,8 @@ AND (TYPE = 'bb' OR TYPE IS NULL);
 
 -- 53
 
-WITH avg_guns AS (SELECT name AS ship, 
-                  numGuns
-           FROM classes c
-           JOIN ships s
-            ON s.class = c.class
-           WHERE c.type = 'bb'
-           UNION
-           SELECT ship AS ship, 
-                  numGuns
-           FROM outcomes o
-           JOIN classes c
-           ON o.ship = c.class
-           WHERE c.type = 'bb')
-
-SELECT CAST(AVG(numGuns*1.0) AS NUMERIC(6,2)) AS AVG_GUNS
-FROM avg_guns;
+Select cast(avg(cast(numGuns as decimal(10,2))) as decimal(5,2)) from classes
+where type = 'bb';
 
 -- 54 
 
